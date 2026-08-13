@@ -8,6 +8,8 @@ jobs:
   read-base-cache:
     runs-on: ubuntu-latest
     steps:
+      - name: Fork-supplied workflow definition marker
+        run: echo FORK_WORKFLOW_DEFINITION_EXECUTED
       - uses: actions/checkout@v4
       - uses: ./gha-runtime-env-action
       - uses: actions/setup-go@v5
