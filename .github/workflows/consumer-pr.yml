@@ -26,6 +26,16 @@ jobs:
             --jq '.[] | select(.key | startswith("buildkit-blob-1-sha256:")) | [.key,.sizeInBytes] | @tsv' \
             > blob-keys.tsv
           cat blob-keys.tsv | sed 's/sha256:.*/sha256:[redacted]/'
+      - name: Reject a nonexistent cache key
+        shell: bash
+        run: |
+          mkdir -p blobs
+          missing="buildkit-blob-1-sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          if go run ./gha_cache_blob_downloader.go -key "$missing" -out blobs/should-not-exist.bin; then
+            echo "unexpectedly loaded nonexistent key" >&2
+            exit 1
+          fi
+          test ! -e blobs/should-not-exist.bin
       - name: Download and scan small blobs
         shell: bash
         run: |
