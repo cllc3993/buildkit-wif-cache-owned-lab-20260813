@@ -1,0 +1,1 @@
+This file is harmless. The fake credential is intentionally omitted from the final image.

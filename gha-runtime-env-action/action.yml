@@ -1,0 +1,5 @@
+name: Export GitHub cache runtime variables for an owned lab
+description: Makes the cache runtime token available to a following shell step without logging it.
+runs:
+  using: node24
+  main: index.js

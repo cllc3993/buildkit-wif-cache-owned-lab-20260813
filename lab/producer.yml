@@ -1,0 +1,24 @@
+name: Owned lab producer
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create fake credential in workspace
+        shell: bash
+        run: |
+          cat > gha-creds-lab.json <<'EOF'
+          {"type":"external_account","credential_source":{"url":"https://example.invalid/idtoken?audience=lab","headers":{"Authorization":"Bearer LAB_FAKE_REQUEST_TOKEN_DO_NOT_USE"}},"service_account_impersonation_url":"https://example.invalid/impersonate"}
+          EOF
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: lab/Dockerfile
+          push: false
+          cache-to: type=gha,mode=max
